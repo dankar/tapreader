@@ -1,0 +1,6 @@
+BasedOnStyle: WebKit
+IndentWidth: 4
+AlignConsecutiveAssignments: true
+AlignConsecutiveBitFields: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
