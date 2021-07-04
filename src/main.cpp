@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 {
     const char *in_file = nullptr;
     const char *out_file = nullptr;
-    uint32_t sample_rate = 9600;
+    uint32_t sample_rate = 96000;
     
     for(int i = 1; i < argc; i++)
     {
@@ -49,8 +49,21 @@ int main(int argc, char* argv[])
         return 1;
     }
     
-    std::ifstream fp(
-        "/home/danne/code/tapreader/Commando.tap", std::ifstream::binary);
+    std::ifstream fp(in_file, std::ifstream::binary);
+
+    if(fp.fail())
+    {
+        std::cout << "error: could not open input file '" << in_file << "'\n";
+        return 3;
+    }
+    
+    std::ofstream fp_out(out_file, std::ofstream::binary);
+
+    if(fp_out.fail())
+    {
+        std::cout << "error: could not open output file '" << out_file << "'\n";
+        return 3;
+    }
 
     wav_t<1, uint8_t> wav(sample_rate);
     tap::tape_t              tape(fp);
@@ -87,11 +100,7 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "Writing wav file...\n";
-
-    std::ofstream fp_out("/home/danne/out.wav", std::ofstream::binary);
-
     wav.dump(fp_out);
-
     std::cout << "All done!\n";
 
     return 0;

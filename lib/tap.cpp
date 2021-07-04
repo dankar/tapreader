@@ -30,7 +30,7 @@ header_t::header_t(std::istream& stream)
     if (strncmp(&marker_string[4], "TAPE-RAW", 8) != 0) {
         std::stringstream ss;
         ss << marker_string;
-        throw std::runtime_error(std::string("Incorrect marker string: ") + ss.str());
+        throw std::runtime_error("Incorrect marker string");
     }
 
     stream.read(reinterpret_cast<char*>(&version), 1);
