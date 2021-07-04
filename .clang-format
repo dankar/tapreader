@@ -4,3 +4,4 @@ AlignConsecutiveAssignments: true
 AlignConsecutiveBitFields: true
 AlignConsecutiveDeclarations: true
 AlignConsecutiveMacros: true
+ColumnLimit: 80

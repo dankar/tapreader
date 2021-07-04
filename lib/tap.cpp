@@ -89,6 +89,7 @@ std::string header_t::dump() const
 tape_t::tape_t(std::istream& stream)
     : header(stream)
     , data(header.get_size())
+    , index(0)
 {
     stream.read(reinterpret_cast<char*>(&data[0]), header.get_size());
 
