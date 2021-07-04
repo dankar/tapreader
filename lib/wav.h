@@ -2,13 +2,14 @@
 #define _WAV_H_
 
 #include <array>
-#include <vector>
 #include <cstring>
+#include <vector>
 
 #pragma pack(push, 1)
 
-template <uint8_t _num_channels, uint32_t _sample_rate, typename data_type_t>
-class format_chunk_t {
+constexpr uint16_t PCM_FORMAT = 1;
+
+template <uint8_t _num_channels, typename data_type_t> class format_chunk_t {
 private:
     char     chunk_id[4]; // 'fmt '
     uint32_t chunk_size; // 16
@@ -20,9 +21,9 @@ private:
     uint16_t bits_per_sample; // 8
 
 public:
-    format_chunk_t()
-        : chunk_size(16)
-        , audio_format(1)
+    format_chunk_t(uint32_t _sample_rate)
+        : chunk_size(sizeof(*this) - sizeof(chunk_id) - sizeof(chunk_size))
+        , audio_format(PCM_FORMAT)
         , num_channels(_num_channels)
         , sample_rate(_sample_rate)
         , bits_per_sample(sizeof(data_type_t) * 8)
@@ -72,24 +73,24 @@ public:
     void dump(std::ostream& stream)
     {
         update_size();
-        stream.write(reinterpret_cast<char*>(this), 8);
-        stream.write(
-            reinterpret_cast<char*>(&data[0]), data.size() * sample_size());
+        stream.write(reinterpret_cast<char*>(this),
+            sizeof(chunk_id) + sizeof(chunk_size));
+        stream.write(reinterpret_cast<char*>(&data[0]), get_size());
     }
 };
 
-template <uint8_t _num_channels, uint32_t _sample_rate, typename data_type_t>
-class wav_t {
+template <uint8_t _num_channels, typename data_type_t> class wav_t {
 private:
     using sample_t = std::array<data_type_t, _num_channels>;
-    char     chunk_id[4]; // 'RIFF'
-    uint32_t chunk_size;
-    char     format_id[4]; // 'WAVE'
-    format_chunk_t<_num_channels, _sample_rate, data_type_t> format;
-    data_chunk_t<sample_t>                                   data;
+    char                                       chunk_id[4]; // 'RIFF'
+    uint32_t                                   chunk_size;
+    char                                       format_id[4]; // 'WAVE'
+    format_chunk_t<_num_channels, data_type_t> format;
+    data_chunk_t<sample_t>                     data;
 
 public:
-    wav_t()
+    wav_t(uint32_t sample_rate)
+        : format(sample_rate)
     {
         memcpy(chunk_id, "RIFF", 4);
         memcpy(format_id, "WAVE", 4);

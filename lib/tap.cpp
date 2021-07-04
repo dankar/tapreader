@@ -35,7 +35,7 @@ header_t::header_t(std::istream& stream)
 
     stream.read(reinterpret_cast<char*>(&version), 1);
 
-    if (version > 1) {
+    if (version != 1) {
         throw std::runtime_error("Invalid TAP version");
     }
 
@@ -130,7 +130,7 @@ uint32_t tape_t::get_next_period()
         return ((tap_data + 0.5) * 1000000 / header.get_frequency());
     } else {
         if (header.get_version() == 0) {
-            throw std::runtime_error("version 0 sucks");
+            throw std::runtime_error("version 0 not supported");
         } else if (header.get_version() == 1) {
             unsigned long pause = 0;
             for (int i = 0; i < 3; i++) {
