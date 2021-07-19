@@ -1,6 +1,6 @@
 package "tapreader"
 version "0.0.1"
-purpose "Converts multiple TAP files into WAV files, packing as many as possible into specified number of minutes"
+purpose "Converts multiple TAP files into WAV files, mergeing the TAP files into sides, with a max length of the supplied number of minutes"
 
 option "minutes" m "The length in minutes of one side of the tape"
 	default="30"

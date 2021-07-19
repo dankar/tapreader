@@ -141,6 +141,7 @@ int main(int argc, char* argv[])
             }
             
             wav.dump(fp_out);
+            file_index++;
         }
     }
     catch(std::exception &e)
