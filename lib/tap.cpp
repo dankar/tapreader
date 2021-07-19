@@ -1,6 +1,7 @@
 #include "tap.h"
 #include <cstring>
 #include <iostream>
+#include <pthread.h>
 #include <sstream>
 #include <stdexcept>
 
@@ -63,11 +64,12 @@ header_t::header_t(std::istream& stream)
 
     stream.read(&in_byte, 1);
 
-    char size_chars[4];
+    unsigned char size_chars[4];
 
-    stream.read(size_chars, 4);
+    stream.read(reinterpret_cast<char*>(size_chars), 4);
 
-    size = (size_chars[0]) | (size_chars[1] << 8) | (size_chars[2] << 16) | (size_chars[3] << 24);
+    size = (size_chars[0]) | (size_chars[1] << 8) | (size_chars[2] << 16)
+        | (size_chars[3] << 24);
 
     frequency = calc_frequency(machine, video_type);
 }
@@ -107,19 +109,18 @@ tape_t::tape_t(std::istream& stream)
 
 std::string tape_t::dump_header() const { return header.dump(); }
 
-void tape_t::rewind()
-{
-    index = 0;
-}
+void tape_t::rewind() { index = 0; }
 
 uint8_t tape_t::get_next_byte()
 {
-    if (index >= data.size()) {
+    if (at_end()) {
         throw std::runtime_error("OOB");
     }
 
     return data[index++];
 }
+
+bool tape_t::at_end() const { return index >= data.size(); }
 
 uint32_t tape_t::get_next_period()
 {

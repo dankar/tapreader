@@ -3,4 +3,6 @@
 .cache
 build
 compile_commands.json
+src/cmdline.h
+src/cmdline.c
 

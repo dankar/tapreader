@@ -16,27 +16,13 @@ namespace frequency {
     constexpr uint32_t C16_NTSC = 111860;
 }
 
-enum machine_t {
-    C64 = 0,
-    VIC = 1,
-    C16 = 2
-};
+enum machine_t { C64 = 0, VIC = 1, C16 = 2 };
 
-enum video_t {
-    PAL  = 0,
-    NTSC = 1
-};
+enum video_t { PAL = 0, NTSC = 1 };
 
-constexpr const char* machine_to_str[] = {
-    "C64",
-    "VIC",
-    "C16"
-};
+constexpr const char* machine_to_str[] = { "C64", "VIC", "C16" };
 
-constexpr const char* video_to_str[] = {
-    "PAL",
-    "NTSC"
-};
+constexpr const char* video_to_str[] = { "PAL", "NTSC" };
 
 class header_t {
 public:
@@ -48,7 +34,7 @@ public:
     uint8_t  get_version() const { return version; }
 
 private:
-    char      marker_string[13]; // "C64-TAPE-RAW\0"
+    char      marker_string[13];
     uint8_t   version;
     machine_t machine;
     video_t   video_type;
@@ -63,12 +49,13 @@ private:
     size_t               index;
 
     uint8_t get_next_byte();
-
+    
 public:
     explicit tape_t(std::istream& stream);
     std::string dump_header() const;
 
     void     rewind();
+    bool     at_end() const;
     uint32_t get_next_period();
 };
 }

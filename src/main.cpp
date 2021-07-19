@@ -1,107 +1,154 @@
+#include "cmdline.h"
 #include "tap.h"
 #include "wav.h"
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 
-void usage()
+std::string get_length_string(float seconds)
 {
-    std::cout << "\n";
-    std::cout << "usage:\n";
-    std::cout << "tapreader -i <tap-file> -o <wav-file> [-s sample_rate (default 96000)]\n";
+    std::stringstream ss;
+
+    int minutes = int(seconds / 60);
+    seconds -= minutes * 60;
+
+    ss << minutes << "m" << seconds << "s";
+
+    return ss.str();
+}
+
+std::vector<wav_t<1, uint8_t>> parse_input_files(char const* const* files,
+    int num_files, uint32_t sample_rate, uint32_t spacing)
+{
+    std::vector<wav_t<1, uint8_t>> wav_files;
+
+    for (int i = 0; i < num_files; i++) {
+
+        std::cout << "Parsing '" << files[i] << "'...\n";
+        std::ifstream fp(files[i], std::ifstream::binary);
+
+        if (fp.fail()) {
+            std::cout << "error: Could not open input file '" << files[i]
+                      << "'\n";
+            throw std::runtime_error("File error");
+        }
+
+        try {
+            tap::tape_t tape(fp);
+
+            wav_files.emplace_back(sample_rate);
+
+            auto& wave_file = wav_files.back();
+
+            bool has_warned = false;
+
+            while (!tape.at_end()) {
+                uint32_t half_period = tape.get_next_period() / 2;
+                uint32_t num_samples
+                    = half_period / wave_file.usecs_per_sample();
+
+                if (!has_warned && num_samples < 12) {
+                    has_warned = true;
+                    std::cout << "WARNING: number of samples per waveform is "
+                                 "too low, raise sample rate\n";
+                }
+
+                for (int i = 0; i < num_samples; i++) {
+                    wave_file.add_sample({ 255 });
+                }
+
+                for (int i = 0; i < num_samples; i++) {
+                    wave_file.add_sample({ 0 });
+                }
+            }
+
+            wave_file.add_silence(spacing);
+        } catch (std::exception& e) {
+            std::cout << "error: Failed to parse '" << files[i] << "', "
+                      << e.what() << "\n";
+            throw std::runtime_error("Parsing failed");
+        }
+
+        std::cout << "\tResulting length: " << get_length_string(wav_files.back().get_length_seconds()) << "\n";
+    }
+
+    return wav_files;
+}
+
+std::vector<wav_t<1, uint8_t>> sideify(
+    const std::vector<wav_t<1, uint8_t>>& wav_files, uint32_t side_minutes,
+    uint32_t sample_rate)
+{
+    std::vector<wav_t<1, uint8_t>> sides;
+    sides.emplace_back(sample_rate);
+
+    const float side_length = side_minutes * 60;
+
+    for (auto const& wav : wav_files) {
+        if (wav.get_length_seconds() > side_length) {
+            throw std::runtime_error("Size of tape is larger than one side");
+        }
+
+        if (sides.back().get_length_seconds() + wav.get_length_seconds()
+            > side_length) {
+            sides.emplace_back(sample_rate);
+        }
+
+        auto& current_side = sides.back();
+        current_side.append(wav);
+    }
+
+    return sides;
 }
 
 int main(int argc, char* argv[])
 {
-    const char *in_file = nullptr;
-    const char *out_file = nullptr;
-    uint32_t sample_rate = 96000;
-    
-    for(int i = 1; i < argc; i++)
-    {
-        if(strcmp(argv[i], "-i") == 0 && i + 1 != argc)
-        {
-            in_file = argv[++i];
-        }
-        if(strcmp(argv[i], "-o") == 0 && i + 1 != argc)
-        {
-            out_file = argv[++i];
-        }
-        if(strcmp(argv[i], "-s") == 0 && i + 1 != argc)
-        {
-            sample_rate = atoi(argv[++i]);
-        }
-    }
-
-
-    if(!in_file)
-    {
-        std::cout << "error: no input tap file specified\n";
-        usage();
+    gengetopt_args_info args;
+    if (cmdline_parser(argc, argv, &args) != 0) {
         return 1;
     }
 
-    if(!out_file)
-    {
-        std::cout << "error: no output wav file specified\n";
-        usage();
+    if (!args.inputs_num) {
+        std::cout << "You must supply at least one input file. See --help for "
+                     "more information\n";
         return 1;
     }
-    
-    std::ifstream fp(in_file, std::ifstream::binary);
 
-    if(fp.fail())
+    try
     {
-        std::cout << "error: could not open input file '" << in_file << "'\n";
-        return 3;
-    }
-    
-    std::ofstream fp_out(out_file, std::ofstream::binary);
+        auto wav_files = parse_input_files(
+            args.inputs, args.inputs_num, args.sample_rate_arg, args.spacing_arg);
 
-    if(fp_out.fail())
-    {
-        std::cout << "error: could not open output file '" << out_file << "'\n";
-        return 3;
-    }
+        auto sides = sideify(wav_files, args.minutes_arg, args.sample_rate_arg);
 
-    wav_t<1, uint8_t> wav(sample_rate);
-    tap::tape_t              tape(fp);
-
-    float sample_period = wav.usecs_per_sample();
-
-    if (sample_period > 11) {
-        std::cout << "WARNING: Number of samples per waveform is too "
-            "low (raise sample rate of wav file)\n";
-        return 2;
-    }
-
-    std::cout << tape.dump_header();
-
-    std::cout << "Creating waveform...\n";
-
-    try {
-
-        while (true) {
-            uint32_t half_period = tape.get_next_period() / 2;
-            uint32_t num_samples = half_period / sample_period;
-
-            for (int i = 0; i < num_samples; i++) {
-                wav.add_sample({ 255 });
+        int file_index = 1;
+        for (auto& wav : sides) {
+            std::stringstream ss;
+            ss << args.output_arg << file_index << ".wav";
+            
+            std::cout << "Writing file '" << ss.str()
+                      << "' (length: " << get_length_string(wav.get_length_seconds())
+                      << ")...\n";
+            
+            std::ofstream fp_out(ss.str(), std::ofstream::binary);
+            if (fp_out.fail()) {
+                std::cout << "error: could not open output file '" << ss.str()
+                          << "'\n";
+                return 1;
             }
-
-            for (int i = 0; i < num_samples; i++) {
-                wav.add_sample({ 0 });
-            }
+            
+            wav.dump(fp_out);
         }
     }
-
-    catch (std::exception& e) {
+    catch(std::exception &e)
+    {
+        std::cout << "Failed to parse files: " << e.what() << "\n";
     }
 
-    std::cout << "Writing wav file...\n";
-    wav.dump(fp_out);
-    std::cout << "All done!\n";
+    cmdline_parser_free(&args);
 
     return 0;
 }

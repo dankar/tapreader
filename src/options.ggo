@@ -1,0 +1,24 @@
+package "tapreader"
+version "0.0.1"
+purpose "Converts multiple TAP files into WAV files, packing as many as possible into specified number of minutes"
+
+option "minutes" m "The length in minutes of one side of the tape"
+	default="30"
+	int
+	optional
+
+option "sample-rate" r "The sample rate of the resulting wav file"
+	default="96000"
+	int
+	optional
+
+option "output" o "The output file to write. A number and a file ending will be automatically added. E.g: if input is \"output\", the first file will be named \"output1.wav\""
+	default="side"
+	string typestr="filename"
+	optional
+
+option "spacing" s "The length of silence between consecutive tap files in seconds"
+	   default="1"
+	   int
+	   optional
+

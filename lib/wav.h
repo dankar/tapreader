@@ -2,6 +2,7 @@
 #define _WAV_H_
 
 #include <array>
+#include <bits/stdint-uintn.h>
 #include <cstring>
 #include <vector>
 
@@ -39,6 +40,8 @@ public:
     {
         stream.write(reinterpret_cast<char*>(this), sizeof(format_chunk_t));
     }
+
+    uint32_t get_sample_rate() const { return sample_rate; }
 };
 
 template <typename sample_t> class data_chunk_t {
@@ -69,6 +72,19 @@ public:
     }
 
     void add_sample(const sample_t& sample) { data.push_back(sample); }
+
+    void clear()
+    {
+        data.clear();
+        update_size();
+    }
+
+    void append(const std::vector<sample_t>& other)
+    {
+        data.insert(data.end(), other.begin(), other.end());
+    }
+
+    const std::vector<sample_t>& c_samples() const { return data; }
 
     void dump(std::ostream& stream)
     {
@@ -106,6 +122,31 @@ public:
     }
 
     void add_sample(const sample_t& sample) { data.add_sample(sample); }
+
+    void add_silence(uint32_t seconds)
+    {
+        for (int i = 0; i < format.get_sample_rate() * seconds; i++) {
+            data.add_sample({ 0 });
+        }
+    }
+
+    const std::vector<sample_t>& c_samples() const { return data.c_samples(); }
+
+    void append(const wav_t<_num_channels, data_type_t>& other)
+    {
+        data.append(other.c_samples());
+    }
+
+    void clear()
+    {
+        data.clear();
+        update_size();
+    }
+
+    float get_length_seconds() const
+    {
+        return float(data.c_samples().size()) / format.get_sample_rate();
+    }
 
     void dump(std::ostream& stream)
     {
