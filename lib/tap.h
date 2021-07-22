@@ -49,7 +49,7 @@ private:
     size_t               index;
 
     uint8_t get_next_byte();
-    
+
 public:
     explicit tape_t(std::istream& stream);
     std::string dump_header() const;

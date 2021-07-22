@@ -72,7 +72,9 @@ std::vector<wav_t<1, uint8_t>> parse_input_files(char const* const* files,
             throw std::runtime_error("Parsing failed");
         }
 
-        std::cout << "\tResulting length: " << get_length_string(wav_files.back().get_length_seconds()) << "\n";
+        std::cout << "\tResulting length: "
+                  << get_length_string(wav_files.back().get_length_seconds())
+                  << "\n";
     }
 
     return wav_files;
@@ -97,8 +99,7 @@ std::vector<wav_t<1, uint8_t>> sideify(
             sides.emplace_back(sample_rate);
         }
 
-        auto& current_side = sides.back();
-        current_side.append(wav);
+        sides.back().append(wav);
     }
 
     return sides;
@@ -117,10 +118,9 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    try
-    {
-        auto wav_files = parse_input_files(
-            args.inputs, args.inputs_num, args.sample_rate_arg, args.spacing_arg);
+    try {
+        auto wav_files = parse_input_files(args.inputs, args.inputs_num,
+            args.sample_rate_arg, args.spacing_arg);
 
         auto sides = sideify(wav_files, args.minutes_arg, args.sample_rate_arg);
 
@@ -128,24 +128,22 @@ int main(int argc, char* argv[])
         for (auto& wav : sides) {
             std::stringstream ss;
             ss << args.output_arg << file_index << ".wav";
-            
-            std::cout << "Writing file '" << ss.str()
-                      << "' (length: " << get_length_string(wav.get_length_seconds())
+
+            std::cout << "Writing file '" << ss.str() << "' (length: "
+                      << get_length_string(wav.get_length_seconds())
                       << ")...\n";
-            
+
             std::ofstream fp_out(ss.str(), std::ofstream::binary);
             if (fp_out.fail()) {
                 std::cout << "error: could not open output file '" << ss.str()
                           << "'\n";
                 return 1;
             }
-            
+
             wav.dump(fp_out);
             file_index++;
         }
-    }
-    catch(std::exception &e)
-    {
+    } catch (std::exception& e) {
         std::cout << "Failed to parse files: " << e.what() << "\n";
     }
 
