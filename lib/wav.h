@@ -95,6 +95,12 @@ public:
     }
 };
 
+struct index_data_t {
+    size_t      offset;
+    size_t      length;
+    std::string information;
+};
+
 template <uint8_t _num_channels, typename data_type_t> class wav_t {
 private:
     using sample_t = std::array<data_type_t, _num_channels>;
@@ -103,6 +109,8 @@ private:
     char                                       format_id[4]; // 'WAVE'
     format_chunk_t<_num_channels, data_type_t> format;
     data_chunk_t<sample_t>                     data;
+
+    std::vector<index_data_t> index_data;
 
 public:
     wav_t(uint32_t sample_rate)
@@ -132,9 +140,23 @@ public:
 
     const std::vector<sample_t>& c_samples() const { return data.c_samples(); }
 
+    const std::vector<index_data_t>& get_index_data() const
+    {
+        return index_data;
+    }
+
     void append(const wav_t<_num_channels, data_type_t>& other)
     {
+        auto other_data = other.get_index_data();
+
+        for (auto& item : other_data) {
+            item.offset += data.c_samples().size();
+        }
+
         data.append(other.c_samples());
+
+        index_data.insert(
+            index_data.end(), other_data.begin(), other_data.end());
     }
 
     void clear()
@@ -148,13 +170,22 @@ public:
         return float(data.c_samples().size()) / format.get_sample_rate();
     }
 
+    void set_full_info(const std::string& info)
+    {
+        index_data.clear();
+        index_data.push_back(index_data_t { 0, data.c_samples().size(), info });
+    }
+
     void dump(std::ostream& stream)
     {
         update_size();
-        stream.write(reinterpret_cast<char*>(this), 12);
+        stream.write(reinterpret_cast<char*>(this),
+            sizeof(chunk_id) + sizeof(chunk_size) + sizeof(format_id));
         format.dump(stream);
         data.dump(stream);
     }
+
+    uint32_t get_sample_rate() { return format.get_sample_rate(); }
 };
 
 #pragma pack(pop)
